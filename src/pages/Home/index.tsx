@@ -6,6 +6,9 @@ import "@fontsource/roboto/400.css";
 import "@fontsource/roboto/500.css";
 import "@fontsource/roboto/700.css";
 
+// Import Link from react-router-dom
+import { Link } from 'react-router-dom';
+
 // Custom Arrow SVG Component
 const CustomArrowIcon = ({ className = "w-5 h-5", ...props }) => (
   <svg
@@ -59,36 +62,20 @@ const Home = () => {
                 </span>
               </div>
 
-              {/* Nav actions - giữ giao diện nhưng làm tĩnh (không click được) */}
-              <nav className="flex items-center gap-2 sm:gap-3 bg-white/30 backdrop-blur-md rounded-full px-2 py-1 shadow-lg pointer-events-none opacity-80">
-                <button
-                  type="button"
-                  className="text-gray-800 hover:text-gray-900 hover:bg-white/30 px-4 py-2 rounded-md transition-colors cursor-default"
-                  disabled
-                >
-                  Giới thiệu
-                </button>
-                <button
-                  type="button"
-                  className="text-gray-800 hover:text-gray-900 hover:bg-white/30 px-4 py-2 rounded-md transition-colors cursor-default"
-                  disabled
-                >
-                  Demo
-                </button>
-                <button
-                  type="button"
-                  className=" text-gray-800 hover:bg-white/30 px-4 py-2 rounded-md transition-colors cursor-default"
-                  disabled
+              {/* Nav actions */}
+              <nav className="flex items-center gap-2 sm:gap-3 bg-white/30 backdrop-blur-md rounded-full px-2 py-1 shadow-lg">
+                <Link
+                  to="/login"
+                  className="text-gray-800 hover:text-gray-900 hover:bg-white/30 px-4 py-2 rounded-md transition-colors"
                 >
                   Đăng nhập
-                </button>
-                <button
-                  type="button"
-                  className=" text-gray-800 hover:bg-white/30 px-4 py-2 rounded-md transition-colors cursor-default"
-                  disabled
+                </Link>
+                <Link
+                  to="/register"
+                  className="text-gray-800 hover:text-gray-900 hover:bg-white/30 px-4 py-2 rounded-md transition-colors"
                 >
                   Đăng ký
-                </button>
+                </Link>
               </nav>
             </div>
           </div>
