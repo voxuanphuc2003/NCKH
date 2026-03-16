@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import * as d3 from "d3";
 import { toast } from "react-toastify";
@@ -53,6 +53,8 @@ const ShareGraph = () => {
   const SVG_WIDTH = 900;
   const SVG_HEIGHT = 600;
   const svgRef = useRef<SVGSVGElement | null>(null);
+  const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
+  const graphRef = useRef<GraphData | null>(null);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
@@ -69,6 +71,7 @@ const ShareGraph = () => {
     setLoading(true);
     try {
       const res = await invitationService.getShareGraph(t);
+      graphRef.current = res.data;
       renderGraph(res.data);
     } catch (err: any) {
       const msg = err?.response?.data?.message ?? "Không tải được cây chia sẻ.";
@@ -76,6 +79,54 @@ const ShareGraph = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fitToView = () => {
+    const svgEl = svgRef.current;
+    const zoom = zoomRef.current;
+    if (!svgEl || !zoom) return;
+
+    const svg = d3.select(svgEl);
+    const g = svg.select<SVGGElement>("g.__graph_root");
+    if (g.empty()) return;
+
+    const bbox = (g.node() as SVGGElement).getBBox();
+    const padding = 40;
+
+    if (bbox.width === 0 || bbox.height === 0) {
+      svg.transition().duration(250).call(zoom.transform as any, d3.zoomIdentity);
+      return;
+    }
+
+    const scale = Math.max(
+      0.3,
+      Math.min(
+        2,
+        Math.min(
+          (SVG_WIDTH - padding * 2) / bbox.width,
+          (SVG_HEIGHT - padding * 2) / bbox.height,
+        ),
+      ),
+    );
+
+    const tx = (SVG_WIDTH - bbox.width * scale) / 2 - bbox.x * scale;
+    const ty = (SVG_HEIGHT - bbox.height * scale) / 2 - bbox.y * scale;
+    const transform = d3.zoomIdentity.translate(tx, ty).scale(scale);
+    svg.transition().duration(300).call(zoom.transform as any, transform);
+  };
+
+  const zoomBy = (factor: number) => {
+    const svgEl = svgRef.current;
+    const zoom = zoomRef.current;
+    if (!svgEl || !zoom) return;
+    d3.select(svgEl).transition().duration(150).call(zoom.scaleBy as any, factor);
+  };
+
+  const resetZoom = () => {
+    const svgEl = svgRef.current;
+    const zoom = zoomRef.current;
+    if (!svgEl || !zoom) return;
+    d3.select(svgEl).transition().duration(200).call(zoom.transform as any, d3.zoomIdentity);
   };
 
   const renderGraph = (graph: GraphData) => {
@@ -95,7 +146,10 @@ const ShareGraph = () => {
 
     svg.attr("viewBox", `0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`);
 
-    const gRoot = svg.append("g").attr("transform", "translate(0,0)");
+    const gRoot = svg
+      .append("g")
+      .attr("class", "__graph_root")
+      .attr("transform", "translate(0,0)");
 
     const root = d3.hierarchy<TreeNode>(rootData);
     const treeLayout = d3.tree<TreeNode>().size([SVG_WIDTH - 100, SVG_HEIGHT - 100]);
@@ -108,6 +162,7 @@ const ShareGraph = () => {
         gRoot.attr("transform", event.transform.toString());
       });
 
+    zoomRef.current = zoomBehaviour;
     svg.call(zoomBehaviour as any);
 
     gRoot
@@ -167,7 +222,13 @@ const ShareGraph = () => {
           .filter(Boolean)
           .join("\n");
       });
+
+    queueMicrotask(() => fitToView());
   };
+
+  const hintText = useMemo(() => {
+    return "Kéo để pan • Lăn chuột để zoom • Dùng nút +/−/Fit/Reset";
+  }, []);
 
   return (
     <div className="min-h-screen bg-slate-50 px-4 py-6">
@@ -180,10 +241,41 @@ const ShareGraph = () => {
             <p className="text-xs text-gray-600">
               Hiển thị từ API /v1/share/graph với token chia sẻ.
             </p>
+            <p className="mt-1 text-[11px] text-gray-500">{hintText}</p>
           </div>
           {loading && <span className="text-xs text-gray-500">Đang tải...</span>}
         </div>
-        <div className="overflow-auto rounded-2xl border border-white bg-white/90 p-2 shadow">
+        <div className="relative overflow-auto rounded-2xl border border-white bg-white/90 p-2 shadow">
+          <div className="absolute right-3 top-3 z-10 flex flex-col gap-2">
+            <button
+              type="button"
+              onClick={() => zoomBy(1.2)}
+              className="rounded-md bg-slate-900 px-3 py-2 text-[11px] font-semibold text-white shadow hover:bg-black"
+            >
+              +
+            </button>
+            <button
+              type="button"
+              onClick={() => zoomBy(0.8)}
+              className="rounded-md bg-slate-900 px-3 py-2 text-[11px] font-semibold text-white shadow hover:bg-black"
+            >
+              −
+            </button>
+            <button
+              type="button"
+              onClick={fitToView}
+              className="rounded-md bg-white px-3 py-2 text-[11px] font-semibold text-slate-800 shadow hover:bg-slate-50"
+            >
+              Fit
+            </button>
+            <button
+              type="button"
+              onClick={resetZoom}
+              className="rounded-md bg-white px-3 py-2 text-[11px] font-semibold text-slate-800 shadow hover:bg-slate-50"
+            >
+              Reset
+            </button>
+          </div>
           <svg ref={svgRef} className="h-[600px] w-full" />
         </div>
       </div>
